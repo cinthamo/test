@@ -1,1 +1,2 @@
-git diff-index --name-status origin/`git branch --show-current` | grep A.*\.java || exit 2
+#!/bin/sh
+git diff-index --name-status origin/`git branch --show-current` | grep A.*\.java && { echo "Use kotlin please"; exit 2; } || exit 0
