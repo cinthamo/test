@@ -1,1 +1,1 @@
-git diff-index --name-status origin/`git branch --show-current` | grep A.*\.java
+git diff-index --name-status origin/`git branch --show-current` | grep A.*\.java || exit 2
