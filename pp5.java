@@ -1,3 +1,3 @@
 do {
-    a();
+    
 } while (condition);
