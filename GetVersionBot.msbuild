@@ -1,0 +1,5 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="GetVersionBot">
+    <Target Name="GetVersionBot">
+        <Message Text="bl-1.2" Importance="high"/>
+    </Target>
+</Project>
