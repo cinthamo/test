@@ -24,19 +24,13 @@ jobs:
       - name: Run GetVersionBot.msbuild (if exists)
         id: get_version
         run: |
-          if [ -f "GetVersionBot.msbuild" ]; then
-            VERSION=$(dotnet msbuild GetVersionBot.msbuild -nologo -v:m | tail -n 1)
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-          else
-            echo "No GetVersionBot.msbuild found, skipping."
-            echo "skip=true" >> $GITHUB_OUTPUT
-          fi
+          VERSION=$(dotnet msbuild GetVersionBot.msbuild -nologo -v:m | tail -n 1 | xargs)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Comment version on PR
-        if: steps.get_version.outputs.skip != 'true'
         uses: peter-evans/create-or-update-comment@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
           body: |
-            ✅ **Version generated:** `${{ steps.get_version.outputs.version }}`
+            ✅ **Version:** `${{ steps.get_version.outputs.version }}`
