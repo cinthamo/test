@@ -1,0 +1,42 @@
+name: Comment version on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  comment-version:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout merge commit only
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run GetVersionBot.msbuild (if exists)
+        id: get_version
+        run: |
+          if [ -f "GetVersionBot.msbuild" ]; then
+            VERSION=$(dotnet msbuild GetVersionBot.msbuild -nologo -v:m | tail -n 1)
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "No GetVersionBot.msbuild found, skipping."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment version on PR
+        if: steps.get_version.outputs.skip != 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ✅ **Version generated:** `${{ steps.get_version.outputs.version }}`

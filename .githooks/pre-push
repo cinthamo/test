@@ -1,2 +1,0 @@
-#!/bin/sh
-git diff-index --name-status origin/`git branch --show-current` | grep A.*\.java && { echo "Use KOTLIN for new files please"; exit 1; } || echo
