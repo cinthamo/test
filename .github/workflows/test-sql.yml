@@ -1,0 +1,52 @@
+name: SQL MDF Export
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-db:
+    runs-on: ubuntu-latest
+
+    services:
+      sql:
+        image: mcr.microsoft.com/azure-sql-edge
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: "MyPass@word"
+        ports:
+          - 1433:1433
+        volumes:
+          - ./sqldata:/var/opt/mssql/data
+        options: >-
+          --health-cmd "exit 0" --health-interval 5s --health-retries 5
+
+    steps:
+      - name: Prepare SQL data directory
+        run: |
+          mkdir -p ./sqldata
+          sudo chmod 777 ./sqldata
+
+      - name: Wait for SQL to start
+        run: |
+          echo "Waiting for SQL to accept connections..."
+          for i in {1..30}; do
+            /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -Q "SELECT 1" -C && break
+            sleep 2
+          done
+
+      - name: Create database
+        run: |
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -C -Q "CREATE DATABASE TestDB"
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -C -Q "SELECT name FROM sys.databases"
+
+      - name: Stop SQL container
+        run: docker stop $(docker ps -q --filter "ancestor=mcr.microsoft.com/azure-sql-edge")
+
+      - name: List MDF/LDF files
+        run: ls -l ./sqldata
+
+      - name: Upload MDF and LDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: sql-data
+          path: ./sqldata/*.mdf,./sqldata/*.ldf
