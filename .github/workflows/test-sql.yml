@@ -18,22 +18,10 @@ jobs:
         volumes:
           - ./sqldata:/var/opt/mssql/data
         options: >-
+          --user root
           --health-cmd "exit 0" --health-interval 5s --health-retries 5
 
     steps:
-      - name: Prepare SQL data directory
-        run: |
-          mkdir -p ./sqldata
-          sudo chmod 777 ./sqldata
-
-      - name: Wait for SQL to start
-        run: |
-          echo "Waiting for SQL to accept connections..."
-          for i in {1..30}; do
-            /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -Q "SELECT 1" -C && break
-            sleep 2
-          done
-
       - name: Create database
         run: |
           /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -C -Q "CREATE DATABASE TestDB"
