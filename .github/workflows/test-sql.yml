@@ -7,38 +7,18 @@ jobs:
   build-db:
     runs-on: ubuntu-latest
 
-    services:
-      sql:
-        image: mcr.microsoft.com/azure-sql-edge
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: "MyPass@word"
-        ports:
-          - 1433:1433
-        volumes:
-          - ./sqldata:/var/opt/mssql/data
-        options: >-
-          --user root
-          --health-cmd "exit 0" --health-interval 5s --health-retries 5
-
     steps:
-      - name: Install sqlcmd
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run MSBuild SQL Export
         run: |
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
-          echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
-          export PATH="$PATH:/opt/mssql-tools18/bin"
-
-      - name: Create database
-        run: |
-          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -C -Q "CREATE DATABASE TestDB"
-          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'MyPass@word' -C -Q "SELECT name FROM sys.databases"
-
-      - name: Stop SQL container
-        run: docker stop $(docker ps -q --filter "ancestor=mcr.microsoft.com/azure-sql-edge")
-
-      - name: List MDF/LDF files
-        run: ls -l ./sqldata
+          dotnet msbuild test-sql.msbuild /t:BuildDatabase
 
       - name: Upload MDF and LDF
         uses: actions/upload-artifact@v4

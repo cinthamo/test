@@ -1,0 +1,47 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="BuildDatabase">
+
+  <PropertyGroup>
+    <SqlImage>mcr.microsoft.com/azure-sql-edge</SqlImage>
+    <SaPassword>MyPass@word</SaPassword>
+    <SqlPort>1433</SqlPort>
+    <SqlDataDir>$(MSBuildThisFileDirectory)sqldata</SqlDataDir>
+  </PropertyGroup>
+
+  <!-- Default target -->
+  <Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;InstallSqlCmd;CreateDatabase;StopSqlContainer;ListMdfFiles" />
+
+  <!-- Run the SQL container -->
+  <Target Name="RunSqlContainer">
+    <Message Text="Starting SQL Edge container..." Importance="High" />
+    <Exec Command="docker run -d --rm --name sqltest -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SaPassword) -p $(SqlPort):1433 -v $(SqlDataDir):/var/opt/mssql/data --user root $(SqlImage)" />
+    <Message Text="Waiting for SQL Server to start..." Importance="High" />
+    <Exec Command="timeout 30 bash -c 'until /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P &quot;$(SaPassword)&quot; -Q &quot;SELECT 1&quot; &gt;/dev/null 2&gt;&amp;1; do sleep 1; done'" IgnoreExitCode="true" />
+  </Target>
+
+  <!-- Install sqlcmd tools if missing -->
+  <Target Name="InstallSqlCmd" Condition="!Exists('/opt/mssql-tools18/bin/sqlcmd')">
+    <Message Text="Installing mssql-tools18..." Importance="High" />
+    <Exec Command="sudo apt-get update" />
+    <Exec Command="sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" />
+  </Target>
+
+  <!-- Create a database -->
+  <Target Name="CreateDatabase">
+    <Message Text="Creating TestDB..." Importance="High" />
+    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P &quot;$(SaPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
+    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P &quot;$(SaPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+  </Target>
+
+  <!-- Stop and remove the container -->
+  <Target Name="StopSqlContainer">
+    <Message Text="Stopping SQL container..." Importance="High" />
+    <Exec Command="docker stop sqltest" IgnoreExitCode="true" />
+  </Target>
+
+  <!-- List MDF/LDF files -->
+  <Target Name="ListMdfFiles">
+    <Message Text="Listing MDF/LDF files in $(SqlDataDir)" Importance="High" />
+    <Exec Command="ls -l $(SqlDataDir)" />
+  </Target>
+
+</Project>
