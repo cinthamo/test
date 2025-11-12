@@ -32,7 +32,7 @@
             echo '✅ SQL Server port 1433 is open';
             exit 0;
           fi;
-          echo &quot;⏳ Waiting for SQL Server to start ($$i/30)...&quot;;
+          echo &quot;⏳ Waiting for SQL Server to start \($$i/30\)...&quot;;
           sleep 2;
           i=`expr $$i + 1`;
         done;
