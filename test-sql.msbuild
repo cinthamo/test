@@ -27,13 +27,13 @@
       sleep 10;
       i=1;
       while [ \$i -le 30 ]; do
-        if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&lt; /dev/tcp/$(SQLServer)/1433&quot; 2&gt;/dev/null'; then
+        if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&amp;lt; /dev/tcp/localhost/1433&quot; 2&amp;gt;/dev/null'; then
           echo '✅ SQL Server port 1433 is open';
           exit 0;
         fi;
-        echo &quot;⏳ Waiting for SQL Server to start ($i/30)...&quot;;
+        echo &quot;⏳ Waiting for SQL Server to start (\$i/30)...&quot;;
         sleep 2;
-        i=`expr $i + 1`;
+        i=\$((\$i + 1));
       done;
       echo '❌ SQL Server did not start in time';
       docker logs $(SQLContainerName);
