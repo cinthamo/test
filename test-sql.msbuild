@@ -23,21 +23,20 @@
 
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
 		<Exec Command="bash -c &quot;
-			echo '⏳ Initial sleep (10s)...';
-			sleep 10;
-			for i in {1..30}; do
-				if docker exec $(SQLContainerName) /bin/bash -c 'nc -z localhost 1433' &gt;/dev/null 2&gt;&amp;1; then
-				echo '✅ SQL Server port 1433 is open';
-				exit 0;
-				fi;
-				echo '⏳ Waiting for SQL Server to start ($i/30)...';
-				sleep 2;
-			done;
-			echo '❌ SQL Server did not start in time';
-			docker logs $(SQLContainerName);
-			exit 1;
-			&quot;"
-		/>
+      echo '⏳ Initial sleep (10s)...';
+      sleep 10;
+      for i in {1..30}; do
+        if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&lt; /dev/tcp/localhost/1433&quot; 2&gt;/dev/null' ; then
+          echo '✅ SQL Server port 1433 is open';
+          exit 0;
+        fi;
+        echo &quot;⏳ Waiting for SQL Server to start ($i/30)...&quot;;
+        sleep 2;
+      done;
+      echo '❌ SQL Server did not start in time';
+      docker logs $(SQLContainerName);
+      exit 1;
+      &quot;" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
