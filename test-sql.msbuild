@@ -22,24 +22,28 @@
 		<Exec Command="docker run -d --rm --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) -p 1433:1433 -v $(SQLServerDataPath):/var/opt/mssql/data --user root $(SQLImage)" />
 
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<Exec Command="bash -c &quot;
-      echo '⏳ Initial sleep (10s)...';
-      sleep 10;
-      i=1;
-      while [ \$i -le 30 ]; do
-        if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&amp;lt; /dev/tcp/localhost/1433&quot; 2&amp;gt;/dev/null'; then
-          echo '✅ SQL Server port 1433 is open';
-          exit 0;
-        fi;
-        echo &quot;⏳ Waiting for SQL Server to start (\$i/30)...&quot;;
-        sleep 2;
-        i=`expr \$i + 1`;
-      done;
-      echo '❌ SQL Server did not start in time';
-      docker logs $(SQLContainerName);
-      exit 1;
-    &quot;" />
-	</Target>
+		<PropertyGroup>
+      <WaitForSQLScript>
+        echo '⏳ Initial sleep (10s)...';
+        sleep 10;
+        i=1;
+        while [ $$i -le 30 ]; do
+          if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&amp;lt; /dev/tcp/localhost/1433&quot; 2&amp;gt;/dev/null'; then
+            echo '✅ SQL Server port 1433 is open';
+            exit 0;
+          fi;
+          echo &quot;⏳ Waiting for SQL Server to start ($$i/30)...&quot;;
+          sleep 2;
+          i=`expr $$i + 1`;
+        done;
+        echo '❌ SQL Server did not start in time';
+        docker logs $(SQLContainerName);
+        exit 1;
+      </WaitForSQLScript>
+    </PropertyGroup>
+    <Message Text="Executing command: $(WaitForSQLScript)" Importance="High" />
+    <Exec Command="bash -c &quot;$(WaitForSQLScript)&quot;" />
+  </Target>
 
 	<Target Name="StopSqlContainer">
 		<Message Text="Stopping SQL container..." Importance="High" />
