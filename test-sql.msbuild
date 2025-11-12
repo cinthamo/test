@@ -25,8 +25,8 @@
 		<Exec Command="bash -c &quot;
       echo '⏳ Initial sleep (10s)...';
       sleep 10;
-      for i in {1..30}; do
-        if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&lt; /dev/tcp/localhost/1433&quot; 2&gt;/dev/null' ; then
+      for i in $(seq 1 30); do
+        if docker exec $(SQLContainerName) /bin/bash -c 'timeout 1 bash -c &quot;&lt; /dev/tcp/localhost/1433&quot; 2&gt;/dev/null'; then
           echo '✅ SQL Server port 1433 is open';
           exit 0;
         fi;
@@ -36,7 +36,7 @@
       echo '❌ SQL Server did not start in time';
       docker logs $(SQLContainerName);
       exit 1;
-      &quot;" />
+    &quot;" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
