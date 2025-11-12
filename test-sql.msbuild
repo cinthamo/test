@@ -20,19 +20,23 @@
 	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
 		<Message Text="Starting SQL Edge container..." Importance="High" />
 		<Exec Command="docker run -d --rm --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) -p 1433:1433 -v $(SQLServerDataPath):/var/opt/mssql/data --user root $(SQLImage)" />
+
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<!-- Wait up to 60 seconds for SQL to accept connections -->
-		<Exec
-			Command="bash -c &quot;for i in {1..30}; do
-			if docker exec $(SQLContainerName) /opt/mssql-tools18/bin/sqlcmd -S localhost -U $(SQLServerUser) -P $(SQLServerPassword) -Q 'SELECT 1' &gt;/dev/null 2&gt;&amp;1; then
-				echo '✅ SQL Server is ready';
+		<Exec Command="bash -c &quot;
+			echo '⏳ Initial sleep (10s)...';
+			sleep 10;
+			for i in {1..30}; do
+				if docker exec $(SQLContainerName) /bin/bash -c 'nc -z localhost 1433' &gt;/dev/null 2&gt;&amp;1; then
+				echo '✅ SQL Server port 1433 is open';
 				exit 0;
-			fi;
-			echo '⏳ Waiting for SQL Server to start ($i/30)...';
-			sleep 2;
+				fi;
+				echo '⏳ Waiting for SQL Server to start ($i/30)...';
+				sleep 2;
 			done;
 			echo '❌ SQL Server did not start in time';
-			exit 1&quot;"
+			docker logs $(SQLContainerName);
+			exit 1;
+			&quot;"
 		/>
 	</Target>
 
