@@ -33,7 +33,7 @@
         fi;
         echo &quot;⏳ Waiting for SQL Server to start (\$i/30)...&quot;;
         sleep 2;
-        i=\$((\$i + 1));
+        i=`expr \$i + 1`;
       done;
       echo '❌ SQL Server did not start in time';
       docker logs $(SQLContainerName);
