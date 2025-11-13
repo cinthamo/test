@@ -35,32 +35,29 @@ docker run -d \
 echo "--- Waiting for SQL Server to be ready at '$SQL_CONTAINER_NAME' ---"
 sleep 20
 
-echo "--- Probing port 1433 ---"
-for i in {1..15}; do
-  if nc -z -v -w 5 "$SQL_CONTAINER_NAME" 1433; then
-    echo "✅ Port 1433 is open and responding."
-    break
-  fi
-  echo "⏳ Port 1433 is not yet open. Retrying ($i/15)..."
-  sleep 5
-done
-
-# --- Step 4: Attempt SQL Connection ---
+# --- Step 4: Attempt SQL Connection & CAPTURE OUTPUT ---
 echo "--- Connecting with sqlcmd ---"
 for i in {1..10}; do
   echo "⏳ Attempting SQL connection to '$SQL_CONTAINER_NAME' ($i/10)..."
   
-  if sqlcmd -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -C -l 10 -b -Q "SELECT 1" &>/dev/null; then
+  # MODIFIED: Redirect output to a log file instead of /dev/null
+  if sqlcmd -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -C -l 10 -b -Q "SELECT 1" > /tmp/sqlcmd.log 2>&1; then
     echo "✅ SQL Server is ready."
     SQL_IP_ADDRESS=$(docker inspect -f "{{.NetworkSettings.Networks.$MY_NETWORK_NAME.IPAddress}}" "$SQL_CONTAINER_NAME")
     echo "$SQL_IP_ADDRESS"
     exit 0
   fi
+  
+  echo "--- sqlcmd output from last attempt: ---"
+  cat /tmp/sqlcmd.log
+  echo "----------------------------------------"
   sleep 5
 done
 
 # --- Step 5: Handle Failure ---
 echo "❌ SQL Server on container '$SQL_CONTAINER_NAME' did not become ready in time."
+echo "--- Final sqlcmd output: ---"
+cat /tmp/sqlcmd.log
 echo "--- Displaying last logs from container for debugging ---"
 docker logs "$SQL_CONTAINER_NAME"
 exit 1
