@@ -26,7 +26,7 @@
 		<Exec Command="docker run -d --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) --network host $(SQLImage)" />
 
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<Exec Command="./wait-for-sql.sh host.docker.internal $(SQLContainerName)$(SQLServerUser) $(SQLServerPassword)" />
+		<Exec Command="./wait-for-sql.sh host.docker.internal $(SQLContainerName) $(SQLServerUser) $(SQLServerPassword)" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
