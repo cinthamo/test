@@ -23,11 +23,12 @@ echo "-------------------------------------"
 
 # --- Step 2: Start the SQL Container ---
 echo "--- Starting SQL container '$SQL_CONTAINER_NAME' on network '$MY_NETWORK_NAME' ---"
-docker run -d --rm \
+docker run -d \
   --name "$SQL_CONTAINER_NAME" \
   --network="$MY_NETWORK_NAME" \
   -e ACCEPT_EULA=Y \
   -e SA_PASSWORD="$SQL_PASSWORD" \
+  -p 1433:1433 \
   "$SQL_IMAGE"
 
 # --- Step 3: Get the SQL Container's IP Address ---
@@ -47,10 +48,10 @@ echo "------------------------------------------"
 
 # --- Step 4: Wait for the SQL Container to be Ready using its IP ---
 echo "--- Waiting for SQL Server to be ready at $SQL_IP_ADDRESS ---"
-sleep 15
+sleep 10
 
-for i in {1..30}; do
-  echo "⏳ Attempting connection to '$SQL_IP_ADDRESS' ($i/30)..."
+for i in {1..10}; do
+  echo "⏳ Attempting connection to '$SQL_IP_ADDRESS' ($i/10)..."
   if sqlcmd -S "$SQL_IP_ADDRESS" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 5 -b -Q "SELECT 1" &>/dev/null; then
     echo "✅ SQL Server is ready."
     echo "$SQL_IP_ADDRESS"
