@@ -23,28 +23,8 @@
 	</Target>
 
 	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
-		<Exec Command="bash -c '
-			set -e
-			set -x
-
-			# Step 1: Get the ID/hostname of the current (builder) container.
-			MY_CONTAINER_ID=$(hostname)
-
-			# Step 2: Inspect this container to find the name of the network it is attached to.
-			MY_NETWORK_NAME=$(docker inspect --format=&quot;{{range $$k, $$v := .NetworkSettings.Networks}}{{$$k}}{{end}}&quot; $$MY_CONTAINER_ID)
-
-			# Step 3: Print the discovered values for debugging.
-			echo &quot;--- Discovered Network Info ---&quot;
-			echo &quot;Builder Container ID: $$MY_CONTAINER_ID&quot;
-			echo &quot;Attaching to Network: $$MY_NETWORK_NAME&quot;
-			echo &quot;-----------------------------&quot;
-
-			# Step 4: Launch the SQL container on the discovered network.
-			docker run -d --rm --name $(SQLContainerName) --network=$$MY_NETWORK_NAME -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) $(SQLImage)
-		'" />
-
-		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<Exec Command="./wait-for-sql.sh $(SQLContainerName) $(SQLContainerName) $(SQLServerUser) $(SQLServerPassword)" />
+		<Message Text="Executing SQL Server setup and wait script..." Importance="High" />
+		<Exec Command="./setup-and-wait-for-sql.sh $(SQLContainerName) $(SQLImage) '$(SQLServerPassword)'" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
