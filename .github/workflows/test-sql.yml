@@ -15,7 +15,7 @@ jobs:
       - name: Install Docker CLI
         run: |
           apt-get update
-          apt-get install -y docker.io netcat
+          apt-get install -y docker.io netcat-openbsd
 
       - name: Checkout repository
         uses: actions/checkout@v4
