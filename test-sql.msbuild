@@ -13,22 +13,9 @@
 
 	<Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;CreateDatabase;StopSqlContainer;CopyMdfFiles;ListMdfFiles" />
 
-	<Target Name="InstallSqlCmd" Condition="!Exists('/opt/mssql-tools18/bin/sqlcmd')">
-		<Message Text="Installing mssql-tools18..." Importance="High" />
-		<Exec Command="apt-get update" />
-		<Exec Command="apt-get install -y curl apt-transport-https gnupg" />
-		<Exec Command="curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg" />
-		<Exec Command="echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main' > /etc/apt/sources.list.d/mssql-release.list" />
-		<Exec Command="apt-get update" />
-		<Exec Command="ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" />
-	</Target>
-
-	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
+	<Target Name="RunSqlContainer">
 		<Message Text="Executing SQL Server setup and wait script..." Importance="High" />
-		<Exec Command="$(SQLSetupScriptName) $(SQLContainerName) $(SQLImage) '$(SQLServerPassword)'" ConsoleToMSBuild="true">
-			<Output TaskParameter="ConsoleOutput" PropertyName="SQLServerIPAddress" />
-		</Exec>
-		<Message Text="SQL Server is ready at IP: $(SQLServerIPAddress)" Importance="High" />
+		<Exec Command="$(SQLSetupScriptName) $(SQLContainerName) $(SQLImage) '$(SQLServerPassword)'" ConsoleToMSBuild="true" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
@@ -39,8 +26,8 @@
 
 	<Target Name="CreateDatabase" DependsOnTargets="InstallSqlCmd">
 		<Message Text="Creating TestDB..." Importance="High" />
-		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLServerIPAddress) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
-		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLServerIPAddress) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
+		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
 	</Target>
 
 	<Target Name="CopyMdfFiles">

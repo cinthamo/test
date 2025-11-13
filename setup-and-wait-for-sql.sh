@@ -1,6 +1,44 @@
 #!/bin/bash
 set -e
 
+# --- Function to Install SQLCMD if it's not present ---
+install_sqlcmd_if_needed() {
+  # The full path to the sqlcmd executable
+  local SQLCMD_PATH="/opt/mssql-tools18/bin/sqlcmd"
+
+  # Check if the command already exists
+  if [ -f "$SQLCMD_PATH" ]; then
+    echo "✅ mssql-tools18 (sqlcmd) is already installed."
+    return 0
+  fi
+
+  echo "--- Installing mssql-tools18 ---"
+  # Non-interactive frontend to prevent prompts during installation
+  export DEBIAN_FRONTEND=noninteractive
+  
+  apt-get update
+  apt-get install -y curl apt-transport-https gnupg
+  
+  # Add Microsoft repository key
+  curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+  
+  # Add Microsoft repository
+  echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list
+  
+  apt-get update
+  
+  # Install the tools, accepting the EULA
+  ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+  
+  echo "✅ mssql-tools18 installation complete."
+}
+
+
+# --- Main script execution starts here ---
+
+# Step 0: Ensure SQLCMD is installed
+install_sqlcmd_if_needed
+
 # --- Read and Validate Parameters ---
 SQL_CONTAINER_NAME="$1"
 SQL_IMAGE="$2"
@@ -33,9 +71,9 @@ docker run -d \
 
 # --- Step 3: Wait and Diagnose ---
 echo "--- Waiting for SQL Server to be ready at '$SQL_CONTAINER_NAME' ---"
-sleep 20
+sleep 5
 
-# --- Step 4: Attempt SQL Connection & CAPTURE OUTPUT ---
+# --- Step 4: Attempt SQL Connection ---
 SQLCMD_PATH="/opt/mssql-tools18/bin/sqlcmd"
 echo "--- Connecting with sqlcmd ---"
 for i in {1..10}; do
@@ -43,8 +81,6 @@ for i in {1..10}; do
   
   if $SQLCMD_PATH -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -C -l 10 -b -Q "SELECT 1" > /tmp/sqlcmd.log 2>&1; then
     echo "✅ SQL Server is ready."
-    SQL_IP_ADDRESS=$(docker inspect -f "{{.NetworkSettings.Networks.$MY_NETWORK_NAME.IPAddress}}" "$SQL_CONTAINER_NAME")
-    echo "$SQL_IP_ADDRESS"
     exit 0
   fi
   
@@ -56,8 +92,6 @@ done
 
 # --- Step 5: Handle Failure ---
 echo "❌ SQL Server on container '$SQL_CONTAINER_NAME' did not become ready in time."
-echo "--- Final sqlcmd output: ---"
-cat /tmp/sqlcmd.log
 echo "--- Displaying last logs from container for debugging ---"
 docker logs "$SQL_CONTAINER_NAME"
 exit 1
