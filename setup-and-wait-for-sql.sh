@@ -1,20 +1,11 @@
 #!/bin/bash
-
-# This script orchestrates the entire Docker setup and wait process.
-# It discovers the network of the container it's running in,
-# launches the SQL container on that same network, and then
-# waits until the database is ready for connections.
-#
-# It exits with code 0 on success and 1 on failure.
-
-# Exit immediately if any command fails.
 set -e
 
 # --- Read and Validate Parameters ---
 SQL_CONTAINER_NAME="$1"
 SQL_IMAGE="$2"
 SQL_PASSWORD="$3"
-SQL_USER="SA" # The user is always SA for this setup
+SQL_USER="SA"
 
 if [ -z "$SQL_CONTAINER_NAME" ] || [ -z "$SQL_IMAGE" ] || [ -z "$SQL_PASSWORD" ]; then
   echo "❌ Error: Missing arguments."
@@ -22,46 +13,53 @@ if [ -z "$SQL_CONTAINER_NAME" ] || [ -z "$SQL_IMAGE" ] || [ -z "$SQL_PASSWORD" ]
   exit 1
 fi
 
-# --- Step 1: Discover Network and Print Debug Info ---
+# --- Step 1: Discover Network ---
 echo "--- Discovering Network Information ---"
-# Get the ID/hostname of the current (builder) container.
 MY_CONTAINER_ID=$(hostname)
-
-# Inspect this container to find the name of the network it is attached to.
-# The Go template is quoted to be safe for the shell.
 MY_NETWORK_NAME=$(docker inspect --format='{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$MY_CONTAINER_ID")
-
 echo "Builder Container ID:   $MY_CONTAINER_ID"
-echo "Attaching SQL container to Network: $MY_NETWORK_NAME"
+echo "Target Network:         $MY_NETWORK_NAME"
 echo "-------------------------------------"
 
-
-# --- Step 2: Start the SQL Container on the Discovered Network ---
-echo "--- Starting SQL container '$SQL_CONTAINER_NAME' ---"
-docker run -d \
+# --- Step 2: Start the SQL Container ---
+echo "--- Starting SQL container '$SQL_CONTAINER_NAME' on network '$MY_NETWORK_NAME' ---"
+docker run -d --rm \
   --name "$SQL_CONTAINER_NAME" \
   --network="$MY_NETWORK_NAME" \
   -e ACCEPT_EULA=Y \
   -e SA_PASSWORD="$SQL_PASSWORD" \
   "$SQL_IMAGE"
 
-# --- Step 3: Wait for the SQL Container to be Ready ---
-echo "--- Waiting for SQL Server to be ready for connections ---"
-# Initial sleep to allow the container to start its boot process.
+# --- Step 3: Get the SQL Container's IP Address (The Critical Fix) ---
+echo "--- Discovering SQL Container's IP Address ---"
+# Inspect the newly created container to get its IP on our specific network.
+SQL_IP_ADDRESS=$(docker inspect --format="{{.NetworkSettings.Networks.\"$MY_NETWORK_NAME\".IPAddress}}" "$SQL_CONTAINER_NAME")
+if [ -z "$SQL_IP_ADDRESS" ]; then
+    echo "❌ CRITICAL ERROR: Could not find the IP address for '$SQL_CONTAINER_NAME' on network '$MY_NETWORK_NAME'."
+    echo "--- Full container inspection for debugging: ---"
+    docker inspect "$SQL_CONTAINER_NAME"
+    exit 1
+fi
+echo "SQL Container IP:       $SQL_IP_ADDRESS"
+echo "------------------------------------------"
+
+# --- Step 4: Wait for the SQL Container to be Ready using its IP ---
+echo "--- Waiting for SQL Server to be ready at $SQL_IP_ADDRESS ---"
 sleep 15
 
-# Loop and attempt a real connection using sqlcmd.
 for i in {1..30}; do
-  echo "⏳ Attempting connection to '$SQL_CONTAINER_NAME' ($i/30)..."
-  # The hostname for the connection (-S) is the container name, because they are on the same network.
-  if sqlcmd -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 5 -b -Q "SELECT 1" &>/dev/null; then
+  # We now connect to the IP ADDRESS, completely bypassing Docker's DNS.
+  echo "⏳ Attempting connection to '$SQL_IP_ADDRESS' ($i/30)..."
+  if sqlcmd -S "$SQL_IP_ADDRESS" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 5 -b -Q "SELECT 1" &>/dev/null; then
     echo "✅ SQL Server is ready."
+    # Output the IP address on the last line so MSBuild can capture it.
+    echo "$SQL_IP_ADDRESS"
     exit 0 # Success!
   fi
   sleep 5
 done
 
-# --- Step 4: Handle Failure ---
+# --- Step 5: Handle Failure ---
 echo "❌ SQL Server on container '$SQL_CONTAINER_NAME' did not become ready in time."
 echo "--- Displaying last logs from container for debugging ---"
 docker logs "$SQL_CONTAINER_NAME"
