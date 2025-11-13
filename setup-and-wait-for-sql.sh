@@ -28,40 +28,52 @@ docker run -d \
   --network="$MY_NETWORK_NAME" \
   -e ACCEPT_EULA=Y \
   -e SA_PASSWORD="$SQL_PASSWORD" \
-  -e MSSQL_MLSERVICES_ENABLED=false \
   -p 1433:1433 \
   "$SQL_IMAGE"
 
-# --- Step 3: Get the SQL Container's IP Address ---
-echo "--- Discovering SQL Container's IP Address ---"
+# --- Step 3: Wait for the SQL Container to be Ready ---
+# We will now connect using the container's name, which acts as its hostname.
+echo "--- Waiting for SQL Server to be ready at '$SQL_CONTAINER_NAME' ---"
+sleep 20 # Give container a moment to initialize before we start checks.
 
-FORMAT_STRING="{{.NetworkSettings.Networks.$MY_NETWORK_NAME.IPAddress}}"
-SQL_IP_ADDRESS=$(docker inspect --format="$FORMAT_STRING" "$SQL_CONTAINER_NAME")
-
-if [ -z "$SQL_IP_ADDRESS" ]; then
-    echo "❌ CRITICAL ERROR: Could not find the IP address for '$SQL_CONTAINER_NAME' on network '$MY_NETWORK_NAME'."
-    echo "--- Full container inspection for debugging: ---"
-    docker inspect "$SQL_CONTAINER_NAME"
+# --- Step 4: Run Network Diagnostics ---
+echo "--- Running Network Diagnostics ---"
+# Check 1: Can we resolve the hostname?
+if ping -c 4 "$SQL_CONTAINER_NAME"; then
+    echo "✅ DNS resolution and ping successful."
+else
+    echo "❌ CRITICAL ERROR: Could not ping container '$SQL_CONTAINER_NAME'. Network issue."
+    docker logs "$SQL_CONTAINER_NAME"
     exit 1
 fi
-echo "SQL Container IP:       $SQL_IP_ADDRESS"
-echo "------------------------------------------"
 
-# --- Step 4: Wait for the SQL Container to be Ready using its IP ---
-echo "--- Waiting for SQL Server to be ready at $SQL_IP_ADDRESS ---"
-sleep 10
+# Check 2: Is the port open?
+echo "--- Probing port 1433 ---"
+for i in {1..15}; do
+  if nc -z -v -w 5 "$SQL_CONTAINER_NAME" 1433; then
+    echo "✅ Port 1433 is open and responding."
+    break
+  fi
+  echo "⏳ Port 1433 is not yet open. Retrying ($i/15)..."
+  sleep 5
+done
 
+# --- Step 5: Attempt SQL Connection ---
+echo "--- Connecting with sqlcmd ---"
 for i in {1..10}; do
-  echo "⏳ Attempting connection to '$SQL_IP_ADDRESS' ($i/10)..."
-  if sqlcmd -S "$SQL_IP_ADDRESS" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 5 -b -Q "SELECT 1" &>/dev/null; then
+  echo "⏳ Attempting SQL connection to '$SQL_CONTAINER_NAME' ($i/10)..."
+  # USE THE CONTAINER NAME DIRECTLY FOR THE CONNECTION
+  if sqlcmd -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 10 -b -Q "SELECT 1" &>/dev/null; then
     echo "✅ SQL Server is ready."
+    # We still need the IP for the MSBuild property output, so get it now.
+    SQL_IP_ADDRESS=$(docker inspect -f "{{.NetworkSettings.Networks.$MY_NETWORK_NAME.IPAddress}}" "$SQL_CONTAINER_NAME")
     echo "$SQL_IP_ADDRESS"
     exit 0
   fi
   sleep 5
 done
 
-# --- Step 5: Handle Failure ---
+# --- Step 6: Handle Failure ---
 echo "❌ SQL Server on container '$SQL_CONTAINER_NAME' did not become ready in time."
 echo "--- Displaying last logs from container for debugging ---"
 docker logs "$SQL_CONTAINER_NAME"
