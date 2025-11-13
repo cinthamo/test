@@ -7,6 +7,7 @@
 		<SQLServerDataPath Condition="'$(SQLServerDataPath)'==''">$(MSBuildThisFileDirectory)sqldata</SQLServerDataPath>
 		<SQLImage Condition="'$(SQLImage)'==''">mcr.microsoft.com/azure-sql-edge</SQLImage>
 		<SQLContainerName Condition="'$(SQLContainerName)'==''">sqltest</SQLContainerName>
+		<DockerNetworkName>kb-builder-net</DockerNetworkName>
   	</PropertyGroup>
 
 	<Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;CreateDatabase;StopSqlContainer;CopyMdfFiles;ListMdfFiles" />
@@ -22,28 +23,36 @@
 	</Target>
 
 	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
-		<Message Text="Starting SQL Edge container..." Importance="High" />
-		<Exec Command="docker run -d --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) --network host $(SQLImage)" />
+		<Message Text="Creating shared Docker network '$(DockerNetworkName)'..." Importance="High" />
+		<Exec Command="docker network create $(DockerNetworkName)" />
+		
+		<Message Text="Attaching this builder container to the network..." Importance="High" />
+		<Exec Command="docker network connect $(DockerNetworkName) $([System.Environment]::GetEnvironmentVariable('HOSTNAME'))" />
+
+		<Message Text="Starting SQL container on shared network..." Importance="High" />
+		<Exec Command="docker run -d --name $(SQLContainerName) --network $(DockerNetworkName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) $(SQLImage)" />
 
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<Exec Command="./wait-for-sql.sh host.docker.internal $(SQLContainerName) $(SQLServerUser) $(SQLServerPassword)" />
+		<Exec Command="./wait-for-sql.sh $(SQLContainerName) $(SQLContainerName) $(SQLServerUser) $(SQLServerPassword)" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
 		<Message Text="Stopping SQL container..." Importance="High" />
 		<Exec Command="docker stop $(SQLContainerName)" IgnoreExitCode="true" />
+		<Exec Command="docker network disconnect $(DockerNetworkName) $(SQLContainerName)" />
+		<Exec Command="docker network rm $(DockerNetworkName)" />
 	</Target>
 
 	<Target Name="CreateDatabase" DependsOnTargets="InstallSqlCmd">
 		<Message Text="Creating TestDB..." Importance="High" />
-		<Exec Command="$(MSBuildThisFileDirectory)/opt/mssql-tools18/bin/sqlcmd -S host.docker.internal -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
-		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S host.docker.internal -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+		<Exec Command="$(MSBuildThisFileDirectory)/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
+		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
 	</Target>
 
 	<Target Name="CopyMdfFiles">
 		<Message Text="Creating local directory to store database files..." Importance="High" />
-		<Exec Command="docker cp &quot;host.docker.internal:/var/opt/mssql/data/GX_KB_Base.mdf&quot; &quot;$(KBPath)&quot;" />
-		<Exec Command="docker cp &quot;host.docker.internal:/var/opt/mssql/data/GX_KB_Base_log.ldf&quot; &quot;$(KBPath)&quot;" />
+		<Exec Command="docker cp &quot;$(SQLContainerName):/var/opt/mssql/data/GX_KB_Base.mdf&quot; &quot;$(KBPath)&quot;" />
+		<Exec Command="docker cp &quot;$(SQLContainerName):/var/opt/mssql/data/GX_KB_Base_log.ldf&quot; &quot;$(KBPath)&quot;" />
 	</Target>
 
 	<Target Name="ListMdfFiles">

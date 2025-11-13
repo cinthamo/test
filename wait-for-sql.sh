@@ -18,8 +18,8 @@ echo "⏳ Initial sleep (15s)..."
 sleep 15
 
 # --- Poll the database with sqlcmd ---
-for i in {1..30}; do
-  echo "⏳ Attempting connection to '$SQL_HOSTNAME' ($i/30)..."
+for i in {1..10}; do
+  echo "⏳ Attempting connection to '$SQL_HOSTNAME' ($i/10)..."
   
   # Connect to the HOSTNAME provided
   if sqlcmd -S "$SQL_HOSTNAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 5 -b -Q "SELECT 1" &>/dev/null; then
