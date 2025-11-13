@@ -36,12 +36,12 @@ echo "--- Waiting for SQL Server to be ready at '$SQL_CONTAINER_NAME' ---"
 sleep 20
 
 # --- Step 4: Attempt SQL Connection & CAPTURE OUTPUT ---
+SQLCMD_PATH="/opt/mssql-tools18/bin/sqlcmd"
 echo "--- Connecting with sqlcmd ---"
 for i in {1..10}; do
   echo "⏳ Attempting SQL connection to '$SQL_CONTAINER_NAME' ($i/10)..."
   
-  # MODIFIED: Redirect output to a log file instead of /dev/null
-  if sqlcmd -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -C -l 10 -b -Q "SELECT 1" > /tmp/sqlcmd.log 2>&1; then
+  if $SQLCMD_PATH -S "$SQL_CONTAINER_NAME" -U "$SQL_USER" -P "$SQL_PASSWORD" -C -l 10 -b -Q "SELECT 1" > /tmp/sqlcmd.log 2>&1; then
     echo "✅ SQL Server is ready."
     SQL_IP_ADDRESS=$(docker inspect -f "{{.NetworkSettings.Networks.$MY_NETWORK_NAME.IPAddress}}" "$SQL_CONTAINER_NAME")
     echo "$SQL_IP_ADDRESS"
