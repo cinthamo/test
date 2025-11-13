@@ -22,7 +22,7 @@
 		<Exec Command="docker run -d --rm --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) -p 1433:1433 -v $(SQLServerDataPath):/var/opt/mssql/data --user root $(SQLImage)" />
 
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<Exec Command="./wait-for-sql.sh $(SQLContainerName)" />
+		<Exec Command="./wait-for-sql.sh $(SQLContainerName) $(SQLServerUser) $(SQLServerPassword)" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
@@ -32,8 +32,8 @@
 
 	<Target Name="CreateDatabase" DependsOnTargets="InstallSqlCmd">
     <Message Text="Creating TestDB..." Importance="High" />
-    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLServer) -U sa -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
-    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLServer) -U sa -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
+    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
   </Target>
 
   <Target Name="ListMdfFiles">
