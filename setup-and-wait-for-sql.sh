@@ -28,6 +28,7 @@ docker run -d \
   --network="$MY_NETWORK_NAME" \
   -e ACCEPT_EULA=Y \
   -e SA_PASSWORD="$SQL_PASSWORD" \
+  -e MSSQL_MLSERVICES_ENABLED=false \
   -p 1433:1433 \
   "$SQL_IMAGE"
 
