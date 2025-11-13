@@ -9,7 +9,7 @@
 		<SQLContainerName Condition="'$(SQLContainerName)'==''">sqltest</SQLContainerName>
   	</PropertyGroup>
 
-	<Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;CreateDatabase;StopSqlContainer;ListMdfFiles" />
+	<Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;CreateDatabase;StopSqlContainer;CopyMdfFiles;ListMdfFiles" />
 
 	<Target Name="InstallSqlCmd" Condition="!Exists('/opt/mssql-tools18/bin/sqlcmd')">
 		<Message Text="Installing mssql-tools18..." Importance="High" />
@@ -23,10 +23,10 @@
 
 	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
 		<Message Text="Starting SQL Edge container..." Importance="High" />
-		<Exec Command="docker run -d --rm --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) -p 1433:1433 -v $(SQLServerDataPath):/var/opt/mssql/data --user root $(SQLImage)" />
+		<Exec Command="docker run -d --name $(SQLContainerName) -e ACCEPT_EULA=Y -e SA_PASSWORD=$(SQLServerPassword) --network host $(SQLImage)" />
 
 		<Message Text="Waiting for SQL Server to be ready..." Importance="High" />
-		<Exec Command="./wait-for-sql.sh $(SQLContainerName) $(SQLServerUser) $(SQLServerPassword)" />
+		<Exec Command="./wait-for-sql.sh host.docker.internal $(SQLServerUser) $(SQLServerPassword)" />
 	</Target>
 
 	<Target Name="StopSqlContainer">
@@ -36,13 +36,19 @@
 
 	<Target Name="CreateDatabase" DependsOnTargets="InstallSqlCmd">
 		<Message Text="Creating TestDB..." Importance="High" />
-		<Exec Command="$(MSBuildThisFileDirectory)/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
-		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+		<Exec Command="$(MSBuildThisFileDirectory)/opt/mssql-tools18/bin/sqlcmd -S host.docker.internal -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
+		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S host.docker.internal -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+	</Target>
+
+	<Target Name="CopyMdfFiles">
+		<Message Text="Creating local directory to store database files..." Importance="High" />
+		<Exec Command="docker cp &quot;host.docker.internal:/var/opt/mssql/data/GX_KB_Base.mdf&quot; &quot;$(KBPath)&quot;" />
+		<Exec Command="docker cp &quot;host.docker.internal:/var/opt/mssql/data/GX_KB_Base_log.ldf&quot; &quot;$(KBPath)&quot;" />
 	</Target>
 
 	<Target Name="ListMdfFiles">
-		<Message Text="Listing MDF/LDF files in $(SQLServerDataPath)" Importance="High" />
-		<Exec Command="ls -l $(SQLServerDataPath)" />
+		<Message Text="Listing MDF/LDF files in $(KBPath)" Importance="High" />
+		<Exec Command="ls -l $(KBPath)" />
 	</Target>
 
 </Project>
