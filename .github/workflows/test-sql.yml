@@ -8,21 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ubuntu:24.04
+      image: mcr.microsoft.com/dotnet/sdk:8.0
 
     steps:
-      - name: Install prerequisites
-        run: |
-          apt-get update
-          apt-get install -y curl apt-transport-https ca-certificates
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
 
       - name: Run MSBuild SQL Export
         run: |
