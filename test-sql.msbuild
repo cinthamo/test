@@ -13,8 +13,8 @@
 
   <Target Name="InstallSqlCmd" Condition="!Exists('/opt/mssql-tools18/bin/sqlcmd')">
     <Message Text="Installing mssql-tools18..." Importance="High" />
-    <Exec Command="sudo apt-get update" />
-    <Exec Command="sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" />
+    <Exec Command="apt-get update" />
+    <Exec Command="ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" />
   </Target>
 
 	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
