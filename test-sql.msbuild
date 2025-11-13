@@ -1,21 +1,25 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="BuildDatabase">
 
-  <PropertyGroup>
+  	<PropertyGroup>
 		<SQLServer Condition="'$(SQLServer)'==''">localhost</SQLServer>
 		<SQLServerUser Condition="'$(SQLServerUser)'==''">SA</SQLServerUser>
 		<SQLServerPassword Condition="'$(SQLServerPassword)'==''">MyPass@word</SQLServerPassword>
 		<SQLServerDataPath Condition="'$(SQLServerDataPath)'==''">$(MSBuildThisFileDirectory)sqldata</SQLServerDataPath>
 		<SQLImage Condition="'$(SQLImage)'==''">mcr.microsoft.com/azure-sql-edge</SQLImage>
 		<SQLContainerName Condition="'$(SQLContainerName)'==''">sqltest</SQLContainerName>
-  </PropertyGroup>
+  	</PropertyGroup>
 
-  <Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;CreateDatabase;StopSqlContainer;ListMdfFiles" />
+	<Target Name="BuildDatabase" DependsOnTargets="RunSqlContainer;CreateDatabase;StopSqlContainer;ListMdfFiles" />
 
-  <Target Name="InstallSqlCmd" Condition="!Exists('/opt/mssql-tools18/bin/sqlcmd')">
-    <Message Text="Installing mssql-tools18..." Importance="High" />
-    <Exec Command="apt-get update" />
-    <Exec Command="ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" />
-  </Target>
+	<Target Name="InstallSqlCmd" Condition="!Exists('/opt/mssql-tools18/bin/sqlcmd')">
+		<Message Text="Installing mssql-tools18..." Importance="High" />
+		<Exec Command="apt-get update" />
+		<Exec Command="apt-get install -y curl apt-transport-https gnupg" />
+		<Exec Command="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -" />
+		<Exec Command="curl https://packages.microsoft.com/config/debian/12/prod.list -o /etc/apt/sources.list.d/mssql-release.list" />
+		<Exec Command="apt-get update" />
+		<Exec Command="ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev" />
+	</Target>
 
 	<Target Name="RunSqlContainer" DependsOnTargets="InstallSqlCmd">
 		<Message Text="Starting SQL Edge container..." Importance="High" />
@@ -31,14 +35,14 @@
 	</Target>
 
 	<Target Name="CreateDatabase" DependsOnTargets="InstallSqlCmd">
-    <Message Text="Creating TestDB..." Importance="High" />
-    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
-    <Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
-  </Target>
+		<Message Text="Creating TestDB..." Importance="High" />
+		<Exec Command="$(MSBuildThisFileDirectory)/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;CREATE DATABASE TestDB&quot;" />
+		<Exec Command="/opt/mssql-tools18/bin/sqlcmd -S $(SQLContainerName) -U $(SQLServerUser) -P &quot;$(SQLServerPassword)&quot; -C -Q &quot;SELECT name FROM sys.databases&quot;" />
+	</Target>
 
-  <Target Name="ListMdfFiles">
-    <Message Text="Listing MDF/LDF files in $(SQLServerDataPath)" Importance="High" />
-    <Exec Command="ls -l $(SQLServerDataPath)" />
-  </Target>
+	<Target Name="ListMdfFiles">
+		<Message Text="Listing MDF/LDF files in $(SQLServerDataPath)" Importance="High" />
+		<Exec Command="ls -l $(SQLServerDataPath)" />
+	</Target>
 
 </Project>
