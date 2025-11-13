@@ -30,10 +30,12 @@ docker run -d --rm \
   -e SA_PASSWORD="$SQL_PASSWORD" \
   "$SQL_IMAGE"
 
-# --- Step 3: Get the SQL Container's IP Address (The Critical Fix) ---
+# --- Step 3: Get the SQL Container's IP Address ---
 echo "--- Discovering SQL Container's IP Address ---"
-# Inspect the newly created container to get its IP on our specific network.
-SQL_IP_ADDRESS=$(docker inspect --format="{{.NetworkSettings.Networks.\"$MY_NETWORK_NAME\".IPAddress}}" "$SQL_CONTAINER_NAME")
+
+FORMAT_STRING="{{.NetworkSettings.Networks.$MY_NETWORK_NAME.IPAddress}}"
+SQL_IP_ADDRESS=$(docker inspect --format="$FORMAT_STRING" "$SQL_CONTAINER_NAME")
+
 if [ -z "$SQL_IP_ADDRESS" ]; then
     echo "❌ CRITICAL ERROR: Could not find the IP address for '$SQL_CONTAINER_NAME' on network '$MY_NETWORK_NAME'."
     echo "--- Full container inspection for debugging: ---"
@@ -48,13 +50,11 @@ echo "--- Waiting for SQL Server to be ready at $SQL_IP_ADDRESS ---"
 sleep 15
 
 for i in {1..30}; do
-  # We now connect to the IP ADDRESS, completely bypassing Docker's DNS.
   echo "⏳ Attempting connection to '$SQL_IP_ADDRESS' ($i/30)..."
   if sqlcmd -S "$SQL_IP_ADDRESS" -U "$SQL_USER" -P "$SQL_PASSWORD" -l 5 -b -Q "SELECT 1" &>/dev/null; then
     echo "✅ SQL Server is ready."
-    # Output the IP address on the last line so MSBuild can capture it.
     echo "$SQL_IP_ADDRESS"
-    exit 0 # Success!
+    exit 0
   fi
   sleep 5
 done
